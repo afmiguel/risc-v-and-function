@@ -5,7 +5,6 @@
 
 .section .text
 .global main
-.type main, @function
 
 # Definições para os estudantes
 .equ PIN_IN_A, 12
@@ -55,4 +54,3 @@ LED_OFF:
     call pico_gpio_write
     j    and_loop
 
-.size main, .-main
