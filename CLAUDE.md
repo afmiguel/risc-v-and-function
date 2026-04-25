@@ -40,16 +40,12 @@ The project uses a two-layer design so students can write clean assembly without
 
 The loop (`and_loop`) executes indefinitely without pause:
 
-1. Read PIN_IN_A (12) → save result in `s0` (callee-saved, preserved across calls)
-2. Read PIN_IN_B (13) → result in `a0`
-3. `beqz s0, LED_OFF` — if pin12 is 0, jump to `LED_OFF`
-4. `beqz a0, LED_OFF` — if pin13 is 0, jump to `LED_OFF`
-5. Fall through to `LED_ON`: write 1 to PIN_OUT (15), jump back to `and_loop`
-6. `LED_OFF`: write 0 to PIN_OUT (15), jump back to `and_loop`
+1. Read PIN_IN_A (12) → result in `a0`; `beqz a0, LED_OFF` — if pin12 is 0, jump immediately to `LED_OFF` (pin13 is not read)
+2. Read PIN_IN_B (13) → result in `a0`; `beqz a0, LED_OFF` — if pin13 is 0, jump to `LED_OFF`
+3. Fall through to `LED_ON`: write 1 to PIN_OUT (15), jump back to `and_loop`
+4. `LED_OFF`: write 0 to PIN_OUT (15), jump back to `and_loop`
 
-`s0` is used to hold the first reading across the second `call` because `a0`–`a7` are caller-saved and would be overwritten. Since `main` loops forever, `s0` is never restored.
-
-The AND is intentionally implemented without logical instructions (`and`/`or`/`xor`): the two `beqz` branches jump directly to `LED_OFF` (output 0) whenever either input is 0; only when both inputs are non-zero does execution fall through to `LED_ON` (output 1).
+The AND is intentionally implemented without logical instructions (`and`/`or`/`xor`): the first `beqz` short-circuits the loop — if pin12 is 0, pin13 is not even read. Only when both inputs are non-zero does execution fall through to `LED_ON`. Because the branch follows each `call` immediately, `a0` still holds the return value and no extra register (`s0`) is needed.
 
 ## RISC-V / Pico ABI Notes
 

@@ -31,17 +31,14 @@ main:
     call pico_gpio_init
 
 and_loop:
-    # Lê pino 12: pico_gpio_read(pin=12) → a0; guarda em s0
+    # Lê pino 12: se for 0, salta imediatamente para LED_OFF
     li   a0, PIN_IN_A
     call pico_gpio_read
-    mv   s0, a0
+    beqz a0, LED_OFF         # pin12 == 0 → salta para LED_OFF
 
-    # Lê pino 13: pico_gpio_read(pin=13) → a0
+    # Lê pino 13: se for 0, salta para LED_OFF
     li   a0, PIN_IN_B
     call pico_gpio_read
-
-    # Se qualquer entrada for 0, desliga; se ambas forem 1, liga
-    beqz s0, LED_OFF         # pin12 == 0 → salta para LED_OFF
     beqz a0, LED_OFF         # pin13 == 0 → salta para LED_OFF
 
 LED_ON:

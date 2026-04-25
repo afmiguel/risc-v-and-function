@@ -43,18 +43,23 @@ Defines configuration constants and implements `main`:
    - Calls `pico_gpio_init(PIN_OUT, DIR_OUT)` — configures pin 15 as output
 
 2. **Main Loop (`and_loop`):**
-   - Read pin 12 via `pico_gpio_read(PIN_IN_A)` → save result in `s0`
-   - Read pin 13 via `pico_gpio_read(PIN_IN_B)` → result in `a0`
-   - Branch to `LED_OFF` if either input is 0; otherwise fall through to `LED_ON`
-   - `LED_ON`: write 1 to pin 15, jump back to `and_loop`
+   - Read pin 12 via `pico_gpio_read(PIN_IN_A)` → if 0, jump immediately to `LED_OFF` (pin 13 is not read)
+   - Read pin 13 via `pico_gpio_read(PIN_IN_B)` → if 0, jump to `LED_OFF`
+   - Fall through to `LED_ON`: write 1 to pin 15, jump back to `and_loop`
    - `LED_OFF`: write 0 to pin 15, jump back to `and_loop`
 
 ### AND logic via conditional branches
 
-Instead of a single `and` instruction, two `beqz` branches redirect execution to one of two explicit labels:
+Instead of a single `and` instruction, a `beqz` placed right after each read short-circuits the loop as soon as a 0 is found:
 
 ```asm
-    beqz s0, LED_OFF         # pin12 == 0 → jump to LED_OFF
+and_loop:
+    li   a0, PIN_IN_A
+    call pico_gpio_read
+    beqz a0, LED_OFF         # pin12 == 0 → jump to LED_OFF
+
+    li   a0, PIN_IN_B
+    call pico_gpio_read
     beqz a0, LED_OFF         # pin13 == 0 → jump to LED_OFF
 
 LED_ON:
@@ -70,20 +75,21 @@ LED_OFF:
     j    and_loop
 ```
 
+Because each `beqz` follows its `call` immediately, `a0` still holds the return value — no extra register is needed to preserve it. If pin 12 is 0, pin 13 is not even read.
+
 Truth table:
 
-| pin12 (s0) | pin13 (a0) | label reached | output |
+| pin12 | pin13 | label reached | output |
 |:---:|:---:|:---:|:---:|
-| 0 | 0 | `LED_OFF` | 0 |
-| 0 | 1 | `LED_OFF` | 0 |
+| 0 | — | `LED_OFF` | 0 |
 | 1 | 0 | `LED_OFF` | 0 |
 | 1 | 1 | `LED_ON` | 1 |
 
 If either `beqz` fires, execution jumps to `LED_OFF`. Only when both inputs are non-zero does execution fall through to `LED_ON`.
 
-### Why `s0` to hold the first reading
+### Why no extra register is needed
 
-Between the first `pico_gpio_read` call and the second, the result in `a0` would be overwritten by the next function call. Registers `a0`–`a7` are **caller-saved** — any `call` may destroy them. Register `s0` is **callee-saved** — any function called must preserve it, so the value is safe across the second `call`. Since `main` loops forever, `s0` is never restored.
+Each `beqz` is placed immediately after its `pico_gpio_read` call, before any other `call` can overwrite `a0`. The first reading is either discarded (jump to `LED_OFF`) or no longer needed (pin12 is 1, so we proceed to read pin13 into the same `a0`). This eliminates the `mv s0, a0` instruction and avoids using any callee-saved register.
 
 ### `pico_gpio_api.c` — C GPIO wrapper
 
