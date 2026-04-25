@@ -40,9 +40,12 @@ and_loop:
     li   a0, PIN_IN_B
     call pico_gpio_read
 
-    # AND lógico: resultado = pin12 AND pin13
-    and  a1, a0, s0
-
+    # AND por desvios: resultado = 1 somente se pin12 E pin13 forem 1
+    li   a1, 0               # assume resultado = 0
+    beqz s0, .Land_write     # pin12 == 0 → resultado permanece 0
+    beqz a0, .Land_write     # pin13 == 0 → resultado permanece 0
+    li   a1, 1               # ambos são 1: resultado = 1
+.Land_write:
     # Escreve resultado no pino 15: pico_gpio_write(pin=15, value=resultado)
     li   a0, PIN_OUT
     call pico_gpio_write
