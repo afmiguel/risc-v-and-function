@@ -40,16 +40,22 @@ and_loop:
     li   a0, PIN_IN_B
     call pico_gpio_read
 
-    # AND por desvios: resultado = 1 somente se pin12 E pin13 forem 1
-    li   a1, 0               # assume resultado = 0
-    beqz s0, .Land_write     # pin12 == 0 → resultado permanece 0
-    beqz a0, .Land_write     # pin13 == 0 → resultado permanece 0
-    li   a1, 1               # ambos são 1: resultado = 1
-.Land_write:
-    # Escreve resultado no pino 15: pico_gpio_write(pin=15, value=resultado)
-    li   a0, PIN_OUT
-    call pico_gpio_write
+    # Se qualquer entrada for 0, desliga; se ambas forem 1, liga
+    beqz s0, LED_OFF         # pin12 == 0 → salta para LED_OFF
+    beqz a0, LED_OFF         # pin13 == 0 → salta para LED_OFF
 
+LED_ON:
+    # Ambas entradas são 1: aciona pino 15
+    li   a0, PIN_OUT
+    li   a1, 1
+    call pico_gpio_write
+    j    and_loop
+
+LED_OFF:
+    # Pelo menos uma entrada é 0: desliga pino 15
+    li   a0, PIN_OUT
+    li   a1, 0
+    call pico_gpio_write
     j    and_loop
 
 .size main, .-main

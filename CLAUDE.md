@@ -42,13 +42,14 @@ The loop (`and_loop`) executes indefinitely without pause:
 
 1. Read PIN_IN_A (12) → save result in `s0` (callee-saved, preserved across calls)
 2. Read PIN_IN_B (13) → result in `a0`
-3. AND via conditional branches: set `a1 = 0`; `beqz s0` skips to write if pin12 is 0; `beqz a0` skips to write if pin13 is 0; otherwise set `a1 = 1`
-4. Write `a1` to PIN_OUT (15)
-5. Jump back to step 1
+3. `beqz s0, LED_OFF` — if pin12 is 0, jump to `LED_OFF`
+4. `beqz a0, LED_OFF` — if pin13 is 0, jump to `LED_OFF`
+5. Fall through to `LED_ON`: write 1 to PIN_OUT (15), jump back to `and_loop`
+6. `LED_OFF`: write 0 to PIN_OUT (15), jump back to `and_loop`
 
 `s0` is used to hold the first reading across the second `call` because `a0`–`a7` are caller-saved and would be overwritten. Since `main` loops forever, `s0` is never restored.
 
-The AND is intentionally implemented without logical instructions (`and`/`or`/`xor`): the two `beqz` branches short-circuit to the write label whenever either input is 0, producing 0; only when both inputs are non-zero does execution fall through to `li a1, 1`.
+The AND is intentionally implemented without logical instructions (`and`/`or`/`xor`): the two `beqz` branches jump directly to `LED_OFF` (output 0) whenever either input is 0; only when both inputs are non-zero does execution fall through to `LED_ON` (output 1).
 
 ## RISC-V / Pico ABI Notes
 

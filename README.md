@@ -45,32 +45,41 @@ Defines configuration constants and implements `main`:
 2. **Main Loop (`and_loop`):**
    - Read pin 12 via `pico_gpio_read(PIN_IN_A)` → save result in `s0`
    - Read pin 13 via `pico_gpio_read(PIN_IN_B)` → result in `a0`
-   - Compute AND via conditional branches (see below)
-   - Write result to pin 15 via `pico_gpio_write(PIN_OUT, result)`
-   - Repeat indefinitely
+   - Branch to `LED_OFF` if either input is 0; otherwise fall through to `LED_ON`
+   - `LED_ON`: write 1 to pin 15, jump back to `and_loop`
+   - `LED_OFF`: write 0 to pin 15, jump back to `and_loop`
 
 ### AND logic via conditional branches
 
-Instead of a single `and` instruction, the result is computed with two `beqz` branches:
+Instead of a single `and` instruction, two `beqz` branches redirect execution to one of two explicit labels:
 
 ```asm
-li   a1, 0               # assume result = 0
-beqz s0, .Land_write     # pin12 == 0 → jump, result stays 0
-beqz a0, .Land_write     # pin13 == 0 → jump, result stays 0
-li   a1, 1               # both inputs are 1: result = 1
-.Land_write:
+    beqz s0, LED_OFF         # pin12 == 0 → jump to LED_OFF
+    beqz a0, LED_OFF         # pin13 == 0 → jump to LED_OFF
+
+LED_ON:
+    li   a0, PIN_OUT
+    li   a1, 1               # both inputs are 1: drive output high
+    call pico_gpio_write
+    j    and_loop
+
+LED_OFF:
+    li   a0, PIN_OUT
+    li   a1, 0               # at least one input is 0: drive output low
+    call pico_gpio_write
+    j    and_loop
 ```
 
 Truth table:
 
-| pin12 (s0) | pin13 (a0) | result (a1) |
-|:---:|:---:|:---:|
-| 0 | 0 | 0 |
-| 0 | 1 | 0 |
-| 1 | 0 | 0 |
-| 1 | 1 | 1 |
+| pin12 (s0) | pin13 (a0) | label reached | output |
+|:---:|:---:|:---:|:---:|
+| 0 | 0 | `LED_OFF` | 0 |
+| 0 | 1 | `LED_OFF` | 0 |
+| 1 | 0 | `LED_OFF` | 0 |
+| 1 | 1 | `LED_ON` | 1 |
 
-The two `beqz` instructions short-circuit to `.Land_write` whenever either input is 0. Only when both inputs are non-zero does execution fall through to `li a1, 1`.
+If either `beqz` fires, execution jumps to `LED_OFF`. Only when both inputs are non-zero does execution fall through to `LED_ON`.
 
 ### Why `s0` to hold the first reading
 
